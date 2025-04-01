@@ -1,11 +1,8 @@
 # lambda_functions/schedule_updater.py (updated for Scrapy)
 import json
 import boto3
-import asyncio
-import datetime
 import logging
-from typing import Dict, List
-import scrapy
+import os
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 
