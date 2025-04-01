@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudWatch Alarms for Football Statistics Scraper'
+
+Parameters:
+  SnsTopicArn:
+    Type: String
+    Description: ARN of the SNS topic for alarm notifications
+    Default: 'arn:aws:sns:YOUR_REGION:YOUR_ACCOUNT_ID:FootballScraperAlerts'
+
+  ScheduleUpdaterFunctionName:
+    Type: String
+    Description: Name of the schedule updater Lambda function
+    Default: 'FootballScheduleUpdater'
+
+  StatsCollectorFunctionName:
+    Type: String
+    Description: Name of the stats collector Lambda function
+    Default: 'FootballStatsCollector'
+
+Resources:
+  # Lambda Error Alarms
+  ScheduleUpdaterErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ScheduleUpdaterFunctionName}-ErrorsAlarm'
+      AlarmDescription: 'Alarm for errors in the schedule updater function'
+      Namespace: 'AWS/Lambda'
+      MetricName: 'Errors'
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ScheduleUpdaterFunctionName
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SnsTopicArn
+      OKActions:
+        - !Ref SnsTopicArn
+
+  StatsCollectorErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${StatsCollectorFunctionName}-ErrorsAlarm'
+      AlarmDescription: 'Alarm for errors in the stats collector function'
+      Namespace: 'AWS/Lambda'
+      MetricName: 'Errors'
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref StatsCollectorFunctionName
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SnsTopicArn
+      OKActions:
+        - !Ref SnsTopicArn
+
+  # Timeout Alarms
+  ScheduleUpdaterTimeoutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ScheduleUpdaterFunctionName}-TimeoutAlarm'
+      AlarmDescription: 'Alarm for timeouts in the schedule updater function'
+      Namespace: 'AWS/Lambda'
+      MetricName: 'Duration'
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ScheduleUpdaterFunctionName
+      Statistic: Maximum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 290000  # 290 seconds (close to 5-minute timeout)
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SnsTopicArn
+      OKActions:
+        - !Ref SnsTopicArn
+
+  StatsCollectorTimeoutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${StatsCollectorFunctionName}-TimeoutAlarm'
+      AlarmDescription: 'Alarm for timeouts in the stats collector function'
+      Namespace: 'AWS/Lambda'
+      MetricName: 'Duration'
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref StatsCollectorFunctionName
+      Statistic: Maximum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 290000  # 290 seconds (close to 5-minute timeout)
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SnsTopicArn
+      OKActions:
+        - !Ref SnsTopicArn
+
+  # Custom Error Metric Alarms
+  ScheduleUpdaterCustomErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ScheduleUpdaterFunctionName}-CustomErrorsAlarm'
+      AlarmDescription: 'Alarm for custom errors in the schedule updater function'
+      Namespace: 'FootballScraper'
+      MetricName: 'ErrorCount'
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ScheduleUpdaterFunctionName
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SnsTopicArn
+      OKActions:
+        - !Ref SnsTopicArn
+
+  StatsCollectorCustomErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${StatsCollectorFunctionName}-CustomErrorsAlarm'
+      AlarmDescription: 'Alarm for custom errors in the stats collector function'
+      Namespace: 'FootballScraper'
+      MetricName: 'ErrorCount'
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref StatsCollectorFunctionName
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref SnsTopicArn
+      OKActions:
+        - !Ref SnsTopicArn
+
+  # No Invocation Alarm for Daily Schedule Updater
+  ScheduleUpdaterNoInvocationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ScheduleUpdaterFunctionName}-NoInvocationAlarm'
+      AlarmDescription: 'Alarm if the schedule updater function is not invoked daily'
+      Namespace: 'AWS/Lambda'
+      MetricName: 'Invocations'
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ScheduleUpdaterFunctionName
+      Statistic: Sum
+      Period: 86400  # 24 hours
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref SnsTopicArn
+      OKActions:
+        - !Ref SnsTopicArn
+
+Outputs:
+  ScheduleUpdaterErrorsAlarmArn:
+    Description: 'ARN of the schedule updater errors alarm'
+    Value: !GetAtt ScheduleUpdaterErrorsAlarm.Arn
+
+  StatsCollectorErrorsAlarmArn:
+    Description: 'ARN of the stats collector errors alarm'
+    Value: !GetAtt StatsCollectorErrorsAlarm.Arn

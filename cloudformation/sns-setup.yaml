@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'SNS Topic for Football Statistics Scraper Alerts'
+
+Parameters:
+  EmailAddress:
+    Type: String
+    Description: Email address to receive notifications
+    Default: 'bookly.beekly@gmail.com'
+
+  TopicName:
+    Type: String
+    Description: Name of the SNS topic
+    Default: 'FootballScraperAlerts'
+
+Resources:
+  # SNS Topic for notifications
+  ScraperAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref TopicName
+      DisplayName: 'Football Scraper Alerts'
+      Tags:
+        - Key: Project
+          Value: FootballScraper
+
+  # Email subscription to the topic
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref ScraperAlertsTopic
+      Protocol: email
+      Endpoint: !Ref EmailAddress
+
+Outputs:
+  ScraperAlertsTopicArn:
+    Description: 'ARN of the SNS topic for alerts'
+    Value: !Ref ScraperAlertsTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-TopicArn'
