@@ -6,9 +6,9 @@ Parameters:
     Type: String
     Description: ARN of the Lambda execution role
 
-  PlaywrightLayerArn:
+  LayerArn:
     Type: String
-    Description: ARN of the Playwright Lambda layer
+    Description: ARN of the Scrapy Lambda layer
 
   SNSTopicArn:
     Type: String
@@ -17,7 +17,6 @@ Parameters:
   S3Bucket:
     Type: String
     Description: S3 bucket containing Lambda deployment packages
-    Default: !Sub 'football-scraper-deployment-${AWS::AccountId}'
 
   ScheduleUpdaterS3Key:
     Type: String
@@ -44,7 +43,7 @@ Resources:
       Timeout: 300  # 5 minutes
       MemorySize: 2048
       Layers:
-        - !Ref PlaywrightLayerArn
+        - !Ref LayerArn
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref SNSTopicArn
@@ -69,7 +68,7 @@ Resources:
       Timeout: 300  # 5 minutes
       MemorySize: 2048
       Layers:
-        - !Ref PlaywrightLayerArn
+        - !Ref LayerArn
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref SNSTopicArn
