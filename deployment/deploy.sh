@@ -112,17 +112,27 @@ echo -e "${GREEN}Lambda Role ARN: $LAMBDA_ROLE_ARN${NC}"
 
 # Create Scrapy Lambda Layer
 echo -e "${YELLOW}Creating Scrapy Lambda Layer...${NC}"
-./update_layer.sh
+./streamlined-layer.sh
 
-# Get Lambda Layer ARN
-LAYER_ARN=$(aws lambda list-layer-versions \
-    --layer-name scrapy-layer \
-    --query "LayerVersions[0].LayerVersionArn" \
-    --output text)
+# Source the layer info file
+if [ -f layer_info.txt ]; then
+    source layer_info.txt
+    if [ -n "$LAYER_ARN" ]; then
+        echo -e "${GREEN}Using layer: $LAYER_ARN${NC}"
+    elif [ -n "$CORE_LAYER_ARN" ]; then
+        # For simplicity, we'll just use the core layer if we have multiple
+        LAYER_ARN=$CORE_LAYER_ARN
+        echo -e "${GREEN}Using core layer: $LAYER_ARN${NC}"
+    else
+        echo -e "${RED}Error: No layer ARN found in layer_info.txt${NC}"
+        exit 1
+    fi
+else
+    echo -e "${RED}Error: layer_info.txt file not found${NC}"
+    exit 1
+fi
 
-echo -e "${GREEN}Lambda Layer ARN: $LAYER_ARN${NC}"
-
-# Package and deploy Lambda functions
+# Package Lambda functions
 echo -e "${YELLOW}Packaging Lambda functions...${NC}"
 ./package_lambda.sh
 
@@ -132,10 +142,10 @@ aws cloudformation deploy \
     --template-file ../cloudformation/lambda.yaml \
     --stack-name "${STACK_PREFIX}-lambda" \
     --parameter-overrides \
-        LambdaRoleArn="$LAMBDA_ROLE_ARN" \
-        ScrapyLayerArn="$LAYER_ARN" \
-        SNSTopicArn="$SNS_TOPIC_ARN" \
-        S3Bucket="$S3_BUCKET" \
+        LambdaRoleArn="${LAMBDA_ROLE_ARN}" \
+        LayerArn="${LAYER_ARN}" \
+        SNSTopicArn="${SNS_TOPIC_ARN}" \
+        S3Bucket="${S3_BUCKET}" \
         ScheduleUpdaterS3Key="schedule_updater.zip" \
         StatsCollectorS3Key="stats_collector.zip" \
     --capabilities CAPABILITY_NAMED_IAM
@@ -146,7 +156,7 @@ aws cloudformation deploy \
     --template-file ../cloudformation/alarms.yaml \
     --stack-name "${STACK_PREFIX}-alarms" \
     --parameter-overrides \
-        SnsTopicArn="$SNS_TOPIC_ARN" \
+        SnsTopicArn="${SNS_TOPIC_ARN}" \
         ScheduleUpdaterFunctionName="FootballScheduleUpdater" \
         StatsCollectorFunctionName="FootballStatsCollector"
 
@@ -176,5 +186,6 @@ aws lambda add-permission \
 echo -e "${GREEN}Deployment completed successfully!${NC}"
 echo -e "${YELLOW}Next steps:${NC}"
 echo -e "1. Check your email and confirm the SNS subscription"
-echo -e "2. Test the deployment by running a test invocation of the schedule updater"
+echo -e "2. Test the deployment by running a test invocation of the schedule updater:"
+echo -e "   aws lambda invoke --function-name FootballScheduleUpdater --payload '{}' response.json"
 echo -e "3. Check CloudWatch Logs for any issues"
