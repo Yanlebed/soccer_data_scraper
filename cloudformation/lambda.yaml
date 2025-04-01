@@ -6,9 +6,9 @@ Parameters:
     Type: String
     Description: ARN of the Lambda execution role
 
-  PlaywrightLayerArn:
+  ScrapyLayerArn:
     Type: String
-    Description: ARN of the Playwright Lambda layer
+    Description: ARN of the Scrapy Lambda layer
 
   SNSTopicArn:
     Type: String
@@ -44,7 +44,7 @@ Resources:
       Timeout: 300  # 5 minutes
       MemorySize: 2048
       Layers:
-        - !Ref PlaywrightLayerArn
+        - !Ref ScrapyLayerArn
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref SNSTopicArn
@@ -69,7 +69,7 @@ Resources:
       Timeout: 300  # 5 minutes
       MemorySize: 2048
       Layers:
-        - !Ref PlaywrightLayerArn
+        - !Ref ScrapyLayerArn
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref SNSTopicArn

@@ -30,6 +30,13 @@ if ! aws sts get-caller-identity &> /dev/null; then
     exit 1
 fi
 
+# Create S3 bucket if it doesn't exist
+S3_BUCKET="${STACK_PREFIX}-deployment-${ACCOUNT_ID}"
+if ! aws s3api head-bucket --bucket "$S3_BUCKET" 2>/dev/null; then
+    echo -e "${YELLOW}Creating S3 bucket $S3_BUCKET...${NC}"
+    aws s3 mb "s3://$S3_BUCKET" --region "$REGION"
+fi
+
 # Create SNS Topic for notifications
 echo -e "${YELLOW}Creating SNS topic for notifications...${NC}"
 aws cloudformation deploy \
@@ -103,13 +110,13 @@ LAMBDA_ROLE_ARN=$(aws cloudformation describe-stacks \
 
 echo -e "${GREEN}Lambda Role ARN: $LAMBDA_ROLE_ARN${NC}"
 
-# Create Playwright Lambda Layer
-echo -e "${YELLOW}Creating Playwright Lambda Layer...${NC}"
+# Create Scrapy Lambda Layer
+echo -e "${YELLOW}Creating Scrapy Lambda Layer...${NC}"
 ./update_layer.sh
 
 # Get Lambda Layer ARN
 LAYER_ARN=$(aws lambda list-layer-versions \
-    --layer-name playwright \
+    --layer-name scrapy-layer \
     --query "LayerVersions[0].LayerVersionArn" \
     --output text)
 
@@ -126,8 +133,9 @@ aws cloudformation deploy \
     --stack-name "${STACK_PREFIX}-lambda" \
     --parameter-overrides \
         LambdaRoleArn="$LAMBDA_ROLE_ARN" \
-        PlaywrightLayerArn="$LAYER_ARN" \
+        ScrapyLayerArn="$LAYER_ARN" \
         SNSTopicArn="$SNS_TOPIC_ARN" \
+        S3Bucket="$S3_BUCKET" \
         ScheduleUpdaterS3Key="schedule_updater.zip" \
         StatsCollectorS3Key="stats_collector.zip" \
     --capabilities CAPABILITY_NAMED_IAM
