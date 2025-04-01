@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Lambda functions for Football Statistics Scraper'
+
+Parameters:
+  LambdaRoleArn:
+    Type: String
+    Description: ARN of the Lambda execution role
+
+  PlaywrightLayerArn:
+    Type: String
+    Description: ARN of the Playwright Lambda layer
+
+  SNSTopicArn:
+    Type: String
+    Description: ARN of the SNS topic for notifications
+
+  S3Bucket:
+    Type: String
+    Description: S3 bucket containing Lambda deployment packages
+    Default: !Sub 'football-scraper-deployment-${AWS::AccountId}'
+
+  ScheduleUpdaterS3Key:
+    Type: String
+    Description: S3 key for the schedule updater deployment package
+    Default: 'schedule_updater.zip'
+
+  StatsCollectorS3Key:
+    Type: String
+    Description: S3 key for the stats collector deployment package
+    Default: 'stats_collector.zip'
+
+Resources:
+  # Schedule Updater Lambda
+  ScheduleUpdaterFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: FootballScheduleUpdater
+      Handler: lambda_function.lambda_handler
+      Role: !Ref LambdaRoleArn
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref ScheduleUpdaterS3Key
+      Runtime: python3.12
+      Timeout: 300  # 5 minutes
+      MemorySize: 2048
+      Layers:
+        - !Ref PlaywrightLayerArn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref SNSTopicArn
+          REGION: !Ref AWS::Region
+          ACCOUNT_ID: !Ref AWS::AccountId
+          STATS_COLLECTOR_ARN: !GetAtt StatsCollectorFunction.Arn
+      Tags:
+        - Key: Project
+          Value: FootballScraper
+
+  # Stats Collector Lambda
+  StatsCollectorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: FootballStatsCollector
+      Handler: lambda_function.lambda_handler
+      Role: !Ref LambdaRoleArn
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref StatsCollectorS3Key
+      Runtime: python3.12
+      Timeout: 300  # 5 minutes
+      MemorySize: 2048
+      Layers:
+        - !Ref PlaywrightLayerArn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref SNSTopicArn
+          REGION: !Ref AWS::Region
+          ACCOUNT_ID: !Ref AWS::AccountId
+      Tags:
+        - Key: Project
+          Value: FootballScraper
+
+  # CloudWatch Log Groups (for better retention and organization)
+  ScheduleUpdaterLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ScheduleUpdaterFunction}'
+      RetentionInDays: 30
+
+  StatsCollectorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${StatsCollectorFunction}'
+      RetentionInDays: 30
+
+Outputs:
+  ScheduleUpdaterArn:
+    Description: ARN of the schedule updater Lambda function
+    Value: !GetAtt ScheduleUpdaterFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ScheduleUpdaterArn'
+
+  StatsCollectorArn:
+    Description: ARN of the stats collector Lambda function
+    Value: !GetAtt StatsCollectorFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-StatsCollectorArn'
